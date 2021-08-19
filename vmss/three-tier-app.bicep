@@ -75,6 +75,17 @@ module bastion 'modules/bastion.module.bicep' = {
   }
 }
 
+// Create application gateway
+module appgw 'modules/appgw.module.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${prefix}-appgw'
+  params: {
+    appgwName: '${prefix}-appgw'
+    appgwSubnetId: vnet.outputs.subnet[1].subnetID
+    appgwPrivateIP: '192.168.1.36'
+  }
+}
+
 // Create proxy vmss
 module proxy 'modules/vmss.module.bicep' = {
   scope: resourceGroup(rg.name)
@@ -83,9 +94,6 @@ module proxy 'modules/vmss.module.bicep' = {
     adminPassword: adminpassword
     vmssName: 'proxy'
     vmssSubnetId: vnet.outputs.subnet[3].subnetID
+    appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[1].id
   }
 }
-
-
-git config --global user.email "you@example.com"
-  git config --global user.name "Your Name"
