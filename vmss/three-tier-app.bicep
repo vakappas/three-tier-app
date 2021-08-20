@@ -16,6 +16,11 @@ var tags = {
 var vnetName = '${prefix}-vnet'
 var bastionName = '${prefix}-bastion'
 
+// Getting the existing resource group
+resource wvdrg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
+  name: 'WVD-Lab-RG'
+}
+
 // create resource groups
 resource rg 'Microsoft.Resources/resourceGroups@2020-06-01' = {
   name: 'rg-${prefix}'
@@ -71,6 +76,33 @@ module vnet 'modules/vnet.module.bicep' = {
         privateEndpointNetworkPolicies: 'Enabled'
       }
     ]
+  }
+}
+module wvdvnet 'modules/vnet.existing.module.bicep' = {
+  scope: resourceGroup(wvdrg.name)
+  name: 'wvdvnet'
+  params: {
+    existingvnetName: 'vklab1-vnet'
+  }
+}
+module wvdtovnetpeering './modules/vnet.peering.bicep' = {
+  name: 'wvd-to-vnet'
+  scope: resourceGroup(wvdrg.name)
+  params: {
+    localVnetName: wvdvnet.outputs.existingvnetName
+    remoteVnetName: vnet.name
+    remoteVnetRg: rg.name
+    remoteVnetID: vnet.outputs.vnetID
+  }
+}
+module vnettowvdpeering './modules/vnet.peering.bicep' = {
+  name: 'vnet-to-wvd'
+  scope: resourceGroup(rg.name)
+  params: {
+    localVnetName: vnet.name
+    remoteVnetName: wvdvnet.outputs.existingvnetName
+    remoteVnetRg: wvdrg.name
+    remoteVnetID: wvdvnet.outputs.existingvnetId
   }
 }
 // Create bastion
