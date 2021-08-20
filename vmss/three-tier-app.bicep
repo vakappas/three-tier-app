@@ -8,6 +8,13 @@ param location string = 'northeurope'
 @secure()
 param adminpassword string
 
+// Domain Join parameters
+param domainToJoin string
+param domainJoinerUser string
+@secure()
+param domainJoinerPass string
+param ouPath string = 'OU=VMSS,DC=vklab,DC=eu'
+
 // Variables
 var tags = {
   environment: 'lab'
@@ -44,6 +51,9 @@ module vnet 'modules/vnet.module.bicep' = {
     tags: tags
     vnetName: vnetName
     vnetPrefix: '192.168.1.0/24'
+    vnetdnsservers: [
+      '172.16.1.11'
+    ]
     subnets: [
       {
         name: 'AzureBastionSubnet'
@@ -136,27 +146,9 @@ module ui 'modules/vmss.module.bicep' = {
     vmssName: 'ui'
     vmssSubnetId: vnet.outputs.subnet[2].subnetID
     appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[0].id
-  }
-}
-// Create proxy vmss
-module proxy 'modules/vmss.module.bicep' = {
-  scope: resourceGroup(rg.name)
-  name: '${prefix}-proxy'
-  params: {
-    adminPassword: adminpassword
-    vmssName: 'proxy'
-    vmssSubnetId: vnet.outputs.subnet[3].subnetID
-    appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[1].id
-  }
-}
-// Create core vmss
-module core 'modules/vmss.module.bicep' = {
-  scope: resourceGroup(rg.name)
-  name: '${prefix}-core'
-  params: {
-    adminPassword: adminpassword
-    vmssName: 'core'
-    vmssSubnetId: vnet.outputs.subnet[4].subnetID
-    appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[2].id
+    domainToJoin: domainToJoin
+    domainJoinerUser: domainJoinerUser
+    domainJoinerPass: domainJoinerPass
+    ouPath: ouPath
   }
 }

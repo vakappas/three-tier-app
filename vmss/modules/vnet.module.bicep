@@ -1,6 +1,7 @@
 // Parameters section
 param vnetName string = 'vnet'
 param vnetPrefix string = '172.16.0.0/22'
+param vnetdnsservers array
 
 @description('Subnets to be created as array of objects, "name" and "subnetPrefix" properties are required, optionally include "routeTableid" and "privateEndpointNetworkPolicies" as "Enabled"/"Disabled"')
 param subnets array = [
@@ -45,6 +46,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2019-12-01' = {
       addressPrefixes: [
         vnetPrefix
       ]
+    }
+    dhcpOptions: {
+      dnsServers: vnetdnsservers
     }
     enableVmProtection: false
     enableDdosProtection: false

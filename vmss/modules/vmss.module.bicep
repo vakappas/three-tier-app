@@ -36,6 +36,14 @@ param powershelldscZip string = 'DSC/InstallIIS.zip'
 @description('Location of the  of the WebDeploy package zip file relative to the URI specified in _artifactsLocation, i.e. WebDeploy/DefaultASPWebApp.v1.0.zip')
 param webDeployPackage string = 'WebDeploy/DefaultASPWebApp.v1.0.zip'
 
+// Domain Join parameters
+param domainToJoin string
+param ouPath string
+param domainJoinerUser string
+param domainJoinerPass string
+@description('Set of bit flags that define the join options. Default value of 3 is a combination of NETSETUP_JOIN_DOMAIN (0x00000001) & NETSETUP_ACCT_CREATE (0x00000002) i.e. will join the domain and create the account on the domain. For more information see https://msdn.microsoft.com/en-us/library/aa392154(v=vs.85).aspx')
+param domainJoinOptions int = 3
+
 // variables
 var namingInfix = toLower(substring('${vmssName}${uniqueString(resourceGroup().id)}', 0, 9))
 var longNamingInfix = toLower(vmssName)
@@ -132,9 +140,29 @@ resource vmss 'Microsoft.Compute/virtualMachineScaleSets@2020-06-01' = {
               }
             }
           }
+          {
+            name: 'joindomain'
+            properties: {
+              publisher: 'Microsoft.Compute'
+              type: 'JsonADDomainExtension'
+              typeHandlerVersion: '1.3'
+              autoUpgradeMinorVersion: true
+              settings: {
+                name: domainToJoin
+                ouPath: ouPath
+                user: domainJoinerUser
+                restart: true
+                options: domainJoinOptions         
+              }
+              protectedSettings: {
+                Password: domainJoinerPass
+              }
+            }
+          }
         ]
       }
     }
     
   }
 }
+
