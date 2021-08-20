@@ -30,6 +30,7 @@ param tags object = {
 var subnetDefaults = {
   routeTableid: ''
   privateEndpointNetworkPolicies: 'Disabled'
+  networkSecurityGroupid: ''
 }
 
 // Normalize subnets passed as parameter applying the default values
@@ -54,6 +55,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2019-12-01' = {
         privateEndpointNetworkPolicies: subnet.privateEndpointNetworkPolicies
         routeTable: empty(subnet.routeTableid) ? json('null') : {
           id: subnet.routeTableid
+        }
+        networkSecurityGroup: empty(subnet.networkSecurityGroupid) ? json('null') : {
+          id: subnet.networkSecurityGroupid
         }
       }
     }]

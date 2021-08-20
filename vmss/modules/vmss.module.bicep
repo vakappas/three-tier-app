@@ -1,3 +1,4 @@
+param location string = resourceGroup().location
 param tags object = {
 
 }
@@ -19,7 +20,21 @@ param instanceCount int = 2
 param adminUsername string = 'vmssadmin'
 @secure()
 param adminPassword string
-param location string = resourceGroup().location
+
+@description('The base URI where artifacts required by this template are located. For example, if stored on a public GitHub repo, you\'d use the following URI: https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/201-vmss-windows-webapp-dsc-autoscale/.')
+param artifactsLocation string = 'https://github.com/Azure/azure-quickstart-templates/raw/master/demos/vmss-windows-webapp-dsc-autoscale/'
+@description('The sasToken required to access _artifactsLocation.  If your artifacts are stored on a public repo or public storage account you can leave this blank.')
+@secure()
+param artifactsLocationSasToken string = ''
+
+@description('Version number of the DSC deployment. Changing this value on subsequent deployments will trigger the extension to run.')
+param powershelldscUpdateTagVersion string = '1.0'
+
+@description('Location of the PowerShell DSC zip file relative to the URI specified in the _artifactsLocation, i.e. DSC/IISInstall.ps1.zip')
+param powershelldscZip string = 'DSC/InstallIIS.zip'
+
+@description('Location of the  of the WebDeploy package zip file relative to the URI specified in _artifactsLocation, i.e. WebDeploy/DefaultASPWebApp.v1.0.zip')
+param webDeployPackage string = 'WebDeploy/DefaultASPWebApp.v1.0.zip'
 
 // variables
 var namingInfix = toLower(substring('${vmssName}${uniqueString(resourceGroup().id)}', 0, 9))
@@ -35,35 +50,11 @@ var osType = {
 }
 var imageReference = osType
 
-// Resources
+var webDeployPackageFullPath = uri(artifactsLocation, concat(webDeployPackage, artifactsLocationSasToken))
+var powershelldscZipFullPath = uri(artifactsLocation, concat(powershelldscZip, artifactsLocationSasToken))
 
-// resource ilb 'Microsoft.Network/loadBalancers@2020-06-01' = {
-//   name: '${longNamingInfix}-ilb'
-//   tags: tags
-//   location: location
-//   properties: {
-//     frontendIPConfigurations: [
-//       {
-//         name: 'LoadBalancerFrontEnd'
-//         properties: {
-//           privateIPAddress: '${longNamingInfix}-pip'
-//           privateIPAllocationMethod: 'Dynamic'
-//           subnet: {
-//             id: vmssSubnetId
-//           }
-//         }
-//         
-//       }
-//       
-//     ]
-//     backendAddressPools: [
-//       {
-//         name: bePoolName
-//       }
-//     ]
-// 
-//   }
-// }
+
+// Resources
 
 resource vmss 'Microsoft.Compute/virtualMachineScaleSets@2020-06-01' = {
   name: vmssName
@@ -118,6 +109,32 @@ resource vmss 'Microsoft.Compute/virtualMachineScaleSets@2020-06-01' = {
           }
         ]
       }
+      extensionProfile: {
+        extensions: [
+          {
+            name: 'Microsoft.Powershell.DSC'
+            properties: {
+              publisher: 'Microsoft.Powershell'
+              type: 'DSC'
+              typeHandlerVersion: '2.9'
+              autoUpgradeMinorVersion: true
+              forceUpdateTag: powershelldscUpdateTagVersion
+              settings: {
+                configuration: {
+                  url: powershelldscZipFullPath
+                  script: 'InstallIIS.ps1'
+                  function: 'InstallIIS'
+                }
+                configurationArguments: {
+                  nodeName: 'localhost'
+                  WebDeployPackagePath: webDeployPackageFullPath
+                }
+              }
+            }
+          }
+        ]
+      }
     }
+    
   }
 }

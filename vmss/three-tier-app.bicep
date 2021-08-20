@@ -23,6 +23,14 @@ resource rg 'Microsoft.Resources/resourceGroups@2020-06-01' = {
   tags: tags
 }
 
+// Create NSG for bastion subnet
+module bastionSubnetNsg 'modules/bastionnsg.module.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${bastionName}-nsg'
+  params: {
+    bastionHostName: bastionName
+  }
+}
 // Create vnet
 module vnet 'modules/vnet.module.bicep' = {
   name: vnetName
@@ -35,6 +43,7 @@ module vnet 'modules/vnet.module.bicep' = {
       {
         name: 'AzureBastionSubnet'
         subnetPrefix: '192.168.1.0/27'
+        networkSecurityGroupid: bastionSubnetNsg.outputs.bastionSubnetNsgId
       }
       {
         name: 'appgw-subnet'
@@ -86,6 +95,17 @@ module appgw 'modules/appgw.module.bicep' = {
   }
 }
 
+// Create UI vmss
+module ui 'modules/vmss.module.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${prefix}-ui'
+  params: {
+    adminPassword: adminpassword
+    vmssName: 'ui'
+    vmssSubnetId: vnet.outputs.subnet[2].subnetID
+    appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[0].id
+  }
+}
 // Create proxy vmss
 module proxy 'modules/vmss.module.bicep' = {
   scope: resourceGroup(rg.name)
@@ -95,5 +115,16 @@ module proxy 'modules/vmss.module.bicep' = {
     vmssName: 'proxy'
     vmssSubnetId: vnet.outputs.subnet[3].subnetID
     appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[1].id
+  }
+}
+// Create core vmss
+module core 'modules/vmss.module.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${prefix}-core'
+  params: {
+    adminPassword: adminpassword
+    vmssName: 'core'
+    vmssSubnetId: vnet.outputs.subnet[4].subnetID
+    appgwBackendPoolId: appgw.outputs.appgwBackendAddressPool[2].id
   }
 }
